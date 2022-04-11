@@ -29,9 +29,8 @@ DAMAGE.
 #define NEW_MC_INDEX 1
 #define NEW_ISO_POLYGON 1
 
-#include <stdio.h>
+#include "logging.hpp"
 #include <stdlib.h>
-
 
 /////////////
 // EdgeKey //
@@ -167,7 +166,7 @@ OctNode<NodeData,Real>* NeighborKey<NodeData,Real>::__EdgeNeighbor(OctNode<NodeD
 		if(yy==i2)	return __FaceNeighbor(node->parent,depth-1,1,yy);
 		break;
 	}
-	fprintf(stderr,"We shouldn't be here: Edges\n");
+	log_error("We shouldn't be here: Edges");
 	return NULL;
 }
 template<class NodeData,class Real>
@@ -196,7 +195,7 @@ OctNode<NodeData,Real>* NeighborKey<NodeData,Real>::__CornerNeighbor(OctNode<Nod
 	if(yy==y)					return __FaceNeighbor(node->parent,depth-1,1,y);
 	if(zz==z)					return __FaceNeighbor(node->parent,depth-1,2,z);
 
-	fprintf(stderr,"We shouldn't be here: Corners\n");
+	log_error("We shouldn't be here: Corners");
 	return NULL;
 }
 template<class NodeData,class Real>
@@ -531,7 +530,7 @@ int IsoOctree<NodeData,Real,VertexData>::setConforming(const std::vector<Vertex>
 				}
 				if(!temp)
 				{
-					fprintf(stderr,"Could not find ancestor with triangles\n");
+					log_error("Could not find ancestor with triangles");
 					continue;
 				}
 				node->initChildren();
@@ -1036,7 +1035,7 @@ int IsoOctree<NodeData,Real,VertexData>::getRootIndex(OctNode<NodeData,Real>* no
 		if		(getRootIndex(&finest->children[c1],finestNIdx.child(c1),finestIndex,ri))	{return 1;}
 		else if	(getRootIndex(&finest->children[c2],finestNIdx.child(c2),finestIndex,ri))	{return 1;}
 		else																				{
-			fprintf(stderr,"Failed to find root index\n");
+			log_error("Failed to find root index");
 			return 0;
 		}
 	}
@@ -1093,12 +1092,14 @@ void IsoOctree<NodeData,Real,VertexData>::getRoots(OctNode<NodeData,Real>* node,
 		{
 			if(roots.find(ri.key)==roots.end()){
 				getRootPosition(ri.node,ri.nIdx,ri.edgeIndex,isoValue,position);
-				vertices.push_back(position);
+				Vertex v;
+				v.point = position;
+				vertices.push_back(v);
 				roots[ri.key]=int(vertices.size())-1;
 			}
 		}
 		else
-			fprintf(stderr,"Failed to get root index\n");
+			log_error("Failed to get root index");
 	}
 }
 template<class NodeData,class Real,class VertexData>
@@ -1157,7 +1158,7 @@ void IsoOctree<NodeData,Real,VertexData>::getIsoFaceEdges(OctNode<NodeData,Real>
 						else
 							edges.push_back(std::pair<RootInfo,RootInfo>(ri1,ri2));
 					else
-						fprintf(stderr,"Bad Edge 1: %lld %lld\n",ri1.key,ri2.key);
+						log_error("Bad Edge 1: %lld %lld\n",ri1.key,ri2.key);
 			}
 		}
 	}
@@ -1190,7 +1191,7 @@ void IsoOctree<NodeData,Real,VertexData>::getIsoPolygons(OctNode<NodeData,Real>*
 				if(getRootIndex(node,nIdx,table[i][j],ri))
 					polygons[pIndex+i][j]=roots[ri.key];
 				else
-					fprintf(stderr,"Bad Edge 1: %lld\n",ri.key);
+					log_error("Bad Edge 1: %lld\n",ri.key);
 		}
 		return;
 	}
@@ -1270,15 +1271,15 @@ void IsoOctree<NodeData,Real,VertexData>::getIsoPolygons(OctNode<NodeData,Real>*
 	{
 		iter=vertexCount.find(edges[i].first);
 		if(iter==vertexCount.end())
-			printf("Could not find vertex: %lld\n",edges[i].first);
+			log_warn("Could not find vertex: %lld",edges[i].first);
 		else if(vertexCount[edges[i].first].second)
 		{
 			RootInfo ri;
 			if(!getRootPair(vertexCount[edges[i].first].first,maxDepth,ri))
-				fprintf(stderr,"Failed to get root pair 1: %lld %d\n",edges[i].first,vertexCount[edges[i].first].second);
+				log_warn("Failed to get root pair 1: %lld %d",edges[i].first,vertexCount[edges[i].first].second);
 			iter=vertexCount.find(ri.key);
 			if(iter==vertexCount.end())
-				printf("Vertex pair not in list\n");
+				log_error("Vertex pair not in list");
 			else
 			{
 				edges.push_back(std::pair<long long,long long>(ri.key,edges[i].first));
@@ -1289,15 +1290,15 @@ void IsoOctree<NodeData,Real,VertexData>::getIsoPolygons(OctNode<NodeData,Real>*
 
 		iter=vertexCount.find(edges[i].second);
 		if(iter==vertexCount.end())
-			printf("Could not find vertex: %lld\n",edges[i].second);
+			log_warn("Could not find vertex: %lld",edges[i].second);
 		else if(vertexCount[edges[i].second].second)
 		{
 			RootInfo ri;
 			if(!getRootPair(vertexCount[edges[i].second].first,maxDepth,ri))
-				fprintf(stderr,"Failed to get root pair 2: %lld %d\n",edges[i].second,vertexCount[edges[i].second].second);
+				log_error("Failed to get root pair 2: %lld %d\n",edges[i].second,vertexCount[edges[i].second].second);
 			iter=vertexCount.find(ri.key);
 			if(iter==vertexCount.end())
-				printf("Vertex pair not in list\n");
+				log_warn("Vertex pair not in list");
 			else{
 				edges.push_back(std::pair<long long,long long>(edges[i].second,ri.key));
 				vertexCount[edges[i].second].second++;
@@ -1416,11 +1417,17 @@ void IsoOctree<NodeData,Real,VertexData>::setMCIndex(const Real& isoValue,const 
 	typename OctNode<NodeData,Real>::NodeIndex nIdx;
 	for(temp=tree.nextLeaf(NULL,nIdx) ; temp ; temp=tree.nextLeaf(temp,nIdx) )
 	{
+		// log_debug("setMCIndex leaf depth %d, idx %d,%d,%d", nIdx.depth, nIdx.offset[0], nIdx.offset[1], nIdx.offset[2]);
 		for(int i=0;i<Cube::CORNERS;i++)
 		{
-			if(cornerValues.find(OctNode<NodeData,Real>::CornerIndex(nIdx,i,maxDepth))==cornerValues.end())
-				fprintf(stderr,"Could not find value in corner value table!\n");
-			cValues[i]=cornerValues[OctNode<NodeData,Real>::CornerIndex(nIdx,i,maxDepth)].value();
+			auto val = OctNode<NodeData,Real>::CornerIndex(nIdx,i,maxDepth);
+			auto it = cornerValues.find(val);
+			if(it == cornerValues.end()) {
+				log_warn("Could not find value %lld in corner value table!", val);
+				cValues[i] = 1; // TODO
+			} else {
+				cValues[i]=it->second.value();
+			}
 		}
 		if(useFull)
 			temp->nodeData.mcIndex=MarchingCubes::GetFullIndex(cValues,isoValue);
@@ -1444,6 +1451,7 @@ void IsoOctree<NodeData,Real,VertexData>::setMCIndex(const Real& isoValue,const 
 			}
 		}
 	}
+	// log_debug("setMCIndex done");
 }
 template<class NodeData,class Real,class VertexData>
 template<class Vertex>
@@ -1550,8 +1558,10 @@ void IsoOctree<NodeData,Real,VertexData>::getIsoSurface(const Real& isoValue,
 		getRoots(temp,nIdx,isoValue,roots,vertices);
 
 	nIdx=typename OctNode<NodeData,Real>::NodeIndex();
-	for(temp=tree.nextLeaf(NULL,nIdx) ; temp ; temp=tree.nextLeaf(temp,nIdx) )
+	for(temp=tree.nextLeaf(NULL,nIdx) ; temp ; temp=tree.nextLeaf(temp,nIdx) ) {
+		// log_debug("getIsoSurface leaf depth %d, idx %d,%d,%d", nIdx.depth, nIdx.offset[0], nIdx.offset[1], nIdx.offset[2]);
 		getIsoPolygons(temp,nIdx,roots,polygons,useFull);
+	}
 }
 template<class NodeData,class Real,class VertexData>
 template<class Vertex>

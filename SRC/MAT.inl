@@ -28,6 +28,8 @@ DAMAGE.
 //////////////////////////////
 // MinimalAreaTriangulation //
 //////////////////////////////
+#include <cfloat>
+
 template <class Real>
 MinimalAreaTriangulation<Real>::MinimalAreaTriangulation(void)
 {

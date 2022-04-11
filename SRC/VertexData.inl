@@ -34,6 +34,11 @@ VertexValue<Real>::VertexValue(void)
 	v=0;
 }
 template<class Real>
+VertexValue<Real>::VertexValue(const Real& v)
+{
+	this->v=v;
+}
+template<class Real>
 VertexValue<Real>::VertexValue(const Real& v,const Point3D<Real>& n)
 {
 	this->v=v;

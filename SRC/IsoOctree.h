@@ -31,6 +31,7 @@ DAMAGE.
 #include <hash_map>
 #include "MarchingCubes.h"
 #include "Octree.h"
+#include "api.hpp"
 
 class EdgeKey
 {
@@ -126,6 +127,11 @@ class IsoOctree
 	template<class MeshReal>
 	void setChildren(OctNode<NodeData,Real>* node,const typename OctNode<NodeData,Real>::NodeIndex& nIdx,
 		const std::vector<int>& triangles,MeshInfo<MeshReal>& mInfo,const int& maxDepth,const int& setCenter,const Real& flatness,stdext::hash_map<long long,std::vector<int>*>* triangleMap=NULL);
+		
+	void setChildren(
+		OctNode<NodeData,Real>* node,
+		const typename OctNode<NodeData,Real>::NodeIndex& nIdx,
+		typename isoOctree::Octree<Real>::Traverser &traverser);
 
 	// Assumes NodeData::mcIndex
 	void setMCIndex(const Real& isoValue,const int& useFull);
@@ -150,6 +156,8 @@ public:
 	int setConforming(const std::vector<Vertex>& vertices,const std::vector<std::vector<int> >& polygons,const int& maxDepth,const int& setCenter,const Real& flatness,const int& noTransform);
 	template<class Vertex>
 	int setConforming(const std::vector<Vertex>& vertices,const std::vector<std::vector<int> >& polygons,const int& maxDepth,const int& setCenter,const Real& flatness,Point3D<Real>& translate,Real& scale,const int& noTransform);
+
+	bool set(typename isoOctree::Octree<Real>::Traverser &traverser);
 
 	// A clean-up method to remove un-needed entries in the cornerValues hash-table
 	void resetValues(void);
