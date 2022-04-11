@@ -25,6 +25,9 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING 
 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGE.
 */
+#define MARCHING_CUBES_IMPL // TODO
+
+#include <cassert>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -192,7 +195,7 @@ int main(int argc,char* argv[])
 	cmdLineReadable Conforming , FullCaseTable , TriangleMesh , Dual , Manifold;
 	cmdLineFloat Curvature(-1);
 	cmdLineInt MaxDepth;
-	char* paramNames[]=
+	const char* paramNames[]=
 	{
 		"in","out","curvature","conforming","fullCaseTable","maxDepth","triangleMesh","dual" , "manifold" 
 	};
@@ -219,7 +222,7 @@ int main(int argc,char* argv[])
 	std::vector<PlyVertex> vertices;
 	std::vector<std::vector<int> > polygons;
 
-	PlyReadPolygons(In.value,vertices,polygons,ft);
+	assert(false); // PlyReadPolygons(In.value,vertices,polygons,ft); // TODO
 	if(Conforming.set)
 		isoTree.setConforming(vertices,polygons,MaxDepth.value,Dual.set,Curvature.value,translate,scale,0);
 	else
@@ -306,7 +309,7 @@ int main(int argc,char* argv[])
 		double t=Time();
 		PolygonToManifoldTriangleMesh<PlyVertex,float>(vertices,polygons,triangles);
 		printf("Converted polygons to triangles in: %f\n",Time()-t);
-		PlyWritePolygons(Out.value,vertices,triangles,ft);
+		assert(false); // PlyWritePolygons(Out.value,vertices,triangles,ft); // TODO
 		printf("Vertices: %d\n",vertices.size());
 		printf("Triangles: %d\n",triangles.size());
 	}
@@ -316,13 +319,13 @@ int main(int argc,char* argv[])
 		double t=Time();
 		PolygonToTriangleMesh<PlyVertex,float>(vertices,polygons,triangles);
 		printf("Converted polygons to triangles in: %f\n",Time()-t);
-		PlyWritePolygons(Out.value,vertices,triangles,ft);
+		assert(false); // PlyWritePolygons(Out.value,vertices,triangles,ft);
 		printf("Vertices: %d\n",vertices.size());
 		printf("Triangles: %d\n",triangles.size());
 	}
 	else
 	{
-		PlyWritePolygons(Out.value,vertices,polygons,ft);
+		assert(false); // PlyWritePolygons(Out.value,vertices,polygons,ft);
 		printf("Vertices: %d\n",vertices.size());
 		printf("Polygons: %d\n",polygons.size());
 	}

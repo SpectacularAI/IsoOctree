@@ -46,6 +46,16 @@ public:
 
 	bool operator != (const EdgeKey& key) const;
 };
+
+namespace std {
+template <> struct hash<EdgeKey> {
+	std::size_t operator()(const EdgeKey& k) const {
+		// TODO: custom bitshifts -> remove
+		return std::hash<size_t>()(k.key1) ^ (std::hash<size_t>()(k.key2) << 17);
+	}
+};
+}
+
 template<class NodeData,class Real>
 class NeighborKey : public OctNode<NodeData,Real>::NeighborKey
 {

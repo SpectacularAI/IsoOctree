@@ -76,7 +76,7 @@ public:
 
 // This reads the arguments in argc, matches them against "names" and sets
 // the values of "r" appropriately. Parameters start with "--"
-void cmdLineParse(int argc, char **argv,char** names,int num,cmdLineReadable** r,
+void cmdLineParse(int argc, char **argv,const char** names,int num,cmdLineReadable** r,
 				  int dumpError=1);
 
 char* GetFileExtension(char* fileName);

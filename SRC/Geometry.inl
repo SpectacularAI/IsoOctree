@@ -28,6 +28,8 @@ DAMAGE.
 /////////////
 // Point3D //
 /////////////
+#include <MarchingCubes.h>
+
 template<class Real>
 Real& Point3D<Real>::operator[] (const int& idx)
 {

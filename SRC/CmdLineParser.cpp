@@ -113,7 +113,7 @@ char* GetFileExtension(char* fileName){
 	return ext;
 }
 
-void cmdLineParse(int argc, char **argv,char** names,int num,cmdLineReadable** readable,
+void cmdLineParse(int argc, char **argv,const char** names,int num,cmdLineReadable** readable,
 				  int dumpError){
 	int i,j;
 

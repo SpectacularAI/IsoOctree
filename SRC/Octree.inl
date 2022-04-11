@@ -172,7 +172,7 @@ int OctNode<NodeData,Real>::leaves(void) const{
 }
 template<class NodeData,class Real>
 int OctNode<NodeData,Real>::maxDepthLeaves(const int& maxDepth) const{
-	if(depth()>maxDepth){return 0;}
+	if(NodeData::depth()>maxDepth){return 0;}
 	if(!children){return 1;}
 	else{
 		int c=0;

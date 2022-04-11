@@ -1,0 +1,10 @@
+#ifndef HASH_MAP_STDEX_ADAPTER
+#define HASH_MAP_STDEX_ADAPTER
+#include <unordered_map>
+#include <string>
+
+namespace stdext {
+    template <class K, class V> using hash_map = std::unordered_map<K, V> ;
+};
+
+#endif

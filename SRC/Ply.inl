@@ -27,7 +27,7 @@ DAMAGE.
 */
 #include "Ply.h"
 
-static char *elem_names[] = { "vertex", "face" };
+static const char *elem_names[] = { "vertex", "face" };
 
 typedef struct PlyFace {
 	unsigned char nr_vertices;
