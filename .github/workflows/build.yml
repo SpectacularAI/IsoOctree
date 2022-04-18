@@ -1,0 +1,12 @@
+name: Build & test
+on: push
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Cleanup working dir
+      run: rm -rf target example/target
+    - name: Build
+      run: ./build_library_and_example.sh
