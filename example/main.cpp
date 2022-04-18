@@ -1,4 +1,4 @@
-#include "api.hpp"
+#include <IsoOctree/IsoOctree.hpp>
 #include <fstream>
 #include <cassert>
 
@@ -12,7 +12,7 @@ public:
         rootInfo.center = { 0.1, 0.2, 0.3 };
         rootInfo.width = 6.0;
     }
-    
+
     const isoOctree::Octree<float>::RootInfo &root() final {
         return rootInfo;
     }

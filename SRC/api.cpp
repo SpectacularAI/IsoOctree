@@ -1,5 +1,5 @@
 #define ISO_OCTREE_API_IMPL
-#include "api.hpp"
+#include "../include/IsoOctree/IsoOctree.hpp"
 
 #define MARCHING_CUBES_IMPL // TODO
 
@@ -125,9 +125,12 @@ namespace isoOctree {
 template <class Real>
 void buildMesh(typename isoOctree::Octree<Real>::Traverser &traverser, isoOctree::MeshInfo<Real> &output)
 {
-	// TODO: get rid of these
-	MarchingCubes::SetCaseTable();
-	MarchingCubes::SetFullCaseTable();
+    static bool isoOctreeCaseInit = false;
+    if (!isoOctreeCaseInit) {
+        isoOctreeCaseInit = true;
+        MarchingCubes::SetCaseTable();
+        MarchingCubes::SetFullCaseTable();
+    }
 
 	using VertexVal = VertexValue<Real>;
 	IsoOctree<NodeDataImpl<VertexVal, Real>, Real, VertexVal> isoTree;
@@ -136,7 +139,7 @@ void buildMesh(typename isoOctree::Octree<Real>::Traverser &traverser, isoOctree
 	log_debug("Nodes In: %d / %d", isoTree.tree.nodes(), isoTree.tree.leaves());
 	log_debug("Values In: %zu", isoTree.cornerValues.size());
 
-    bool fullMarchingCubes = false;
+    bool fullMarchingCubes = true;
     bool manifoldVersion = false;
 
 	std::vector<VertexImpl<Real>> vertices;
@@ -208,7 +211,7 @@ void IsoOctree<NodeData, Real, VertexData>::setChildren(
             int x,y,z;
             Cube::FactorCornerIndex(i, x, y, z);
 			auto coords = getMappedCornerPosition<Real>(
-				root, 
+				root,
 				ctr.coords[0] + Real(x - 0.5) * w,
 				ctr.coords[1] + Real(y - 0.5) * w,
 				ctr.coords[2] + Real(z - 0.5) * w

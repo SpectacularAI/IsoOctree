@@ -3,29 +3,40 @@ set(LIBNAME IsoOctree)
 set(MAJOR_VERSION 1)
 project(${LIBNAME} VERSION "${MAJOR_VERSION}.0.0")
 
+option(IsoOctree_STATIC "Build static lib" OFF)
+
 set(CMAKE_CXX_STANDARD 11)
+
+if (IsoOctree_STATIC)
+  set(IsoOctree_LIBTYPE "STATIC")
+else()
+  set(IsoOctree_LIBTYPE "SHARED")
+endif()
+
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 set(ISO_OCTREE_SRC SRC/api.cpp)
-
-add_library(${LIBNAME} STATIC ${ISO_OCTREE_SRC})
+add_library(${LIBNAME} ${IsoOctree_LIBTYPE} ${ISO_OCTREE_SRC})
 target_include_directories(${LIBNAME} PRIVATE SRC)
+set_target_properties(${LIBNAME} PROPERTIES CXX_VISIBILITY_PRESET hidden)
+
+# hide some warnings (safe to comment out)
 target_compile_options(${LIBNAME} PRIVATE "-Wno-dangling-else")
 
-add_executable(example SRC/example.cpp)
-target_include_directories(example PRIVATE SRC)
-target_link_libraries(example PRIVATE ${LIBNAME})
+include(GNUInstallDirs)
 
 install(FILES
-  SRC/api.hpp
-  DESTINATION include/${LIBNAME}
-  COMPONENT Headers)
+  include/IsoOctree/IsoOctree.hpp
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LIBNAME}
+  COMPONENT Devel)
 
 # CMake installation boilerplate
 install(TARGETS ${LIBNAME}
   EXPORT ${LIBNAME}Targets
-  ARCHIVE DESTINATION lib
-  PUBLIC_HEADER DESTINATION include/${LIBNAME})
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 set_property(TARGET ${LIBNAME} PROPERTY VERSION ${PROJECT_VERSION})
 set_property(TARGET ${LIBNAME} PROPERTY SOVERSION ${MAJOR_VERSION})
