@@ -20,8 +20,9 @@ add_library(${LIBNAME} ${IsoOctree_LIBTYPE} ${ISO_OCTREE_SRC})
 target_include_directories(${LIBNAME} PRIVATE SRC)
 set_target_properties(${LIBNAME} PROPERTIES CXX_VISIBILITY_PRESET hidden)
 
-# hide some warnings (safe to comment out)
-target_compile_options(${LIBNAME} PRIVATE "-Wno-dangling-else")
+if(NOT MSVC)
+  target_compile_options(${LIBNAME} PRIVATE "-Wno-dangling-else")
+endif()
 
 include(GNUInstallDirs)
 
