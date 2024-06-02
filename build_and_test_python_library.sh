@@ -34,4 +34,4 @@ python -m venv venv_test
 source venv_test/bin/activate
 pip install ../../dist/*.whl
 cd ..
-python example.py
+python examples/simple.py

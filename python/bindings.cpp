@@ -32,6 +32,9 @@
 namespace py = pybind11;
 
 namespace {
+constexpr int DEFAULT_MAX_DEPTH = 7;
+constexpr int DEFAULT_WIDTH = 1.0;
+
 using Real = double;
 using Octree = isoOctree::Octree<Real>;
 using Voxel = Octree::Voxel;
@@ -130,8 +133,8 @@ PYBIND11_MODULE(IsoOctree, m) {
         py::arg("expandFunction"),
         py::kw_only(),
         py::arg("center") = Point3D { 0, 0, 0 },
-        py::arg("width") = 1.0,
-        py::arg("maxDepth") = 10,
+        py::arg("width") = DEFAULT_WIDTH,
+        py::arg("maxDepth") = DEFAULT_MAX_DEPTH,
         "Mesh an implicit function using the Iso-Octree algorithm \n"
         "\n"
         "Applied to a cubical region [cx-w/2, cx+w/2] x [cy-w/2, cy+w/2] x [cz-w/2, cz+w/2]\n"
