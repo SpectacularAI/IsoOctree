@@ -7,3 +7,4 @@ Main modifications:
  * Add an API (the original code was a command line application), see `include/IsoOctree/IsoOctree.hpp` and `example/`.
  * Port to C++11
  * Add CMake installation scripts
+ * Python bindings
