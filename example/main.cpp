@@ -30,7 +30,6 @@ public:
 
         int nNonNegative = 0, nNegative = 0;
         for (float v : corners) {
-            bool neg = v < 0.0;
             if (v < 0.0) nNegative++;
             else nNonNegative++;
         }
