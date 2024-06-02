@@ -27,23 +27,24 @@ struct MeshInfo {
 };
 
 template <class Real> struct Octree {
-    struct NodeIndex {
+
+    struct Voxel {
         using Index = std::array<MeshIndex, 3>;
         Index index;
         int depth;
+        Point3D<Real> minCorner;
+        Real width;
     };
 
     struct RootInfo {
         Point3D<Real> center;
         Real width;
         int maxDepth; // must be known beforehand for practical reasons
-
-        // TODO
-        // Point3D<Real> getNodeCoordinates(const NodeIndex &nodeIndex, float offset = 0.0) const;
-        // Real getNodeWidth(const NodeIndex &nodeIndex) const;
     };
 
     using CornerValues = std::array<float, 8>;
+
+    using NodeIndex = Voxel; // backwards compatibility
 
     struct Traverser {
         virtual const RootInfo &root() = 0;

@@ -41,11 +41,20 @@ template <class Real> isoOctree::Point3D<Real> getMappedCornerPosition(
     return getMappedCornerPosition(root, center.coords[0], center.coords[1], center.coords[2]);
 }
 
-template <class Real, class NodeIndex> typename isoOctree::Octree<Real>::NodeIndex convertIdx(const NodeIndex &nIdx) {
-    typename isoOctree::Octree<Real>::NodeIndex idxApi;
+template <class Real, class NodeIndex> typename isoOctree::Octree<Real>::Voxel convertIdx(
+	const NodeIndex &nIdx,
+	const typename isoOctree::Octree<Real>::RootInfo &root)
+{
+    typename isoOctree::Octree<Real>::Voxel idxApi;
     using isoOctree::MeshIndex;
     idxApi.depth = nIdx.depth;
     idxApi.index = { MeshIndex(nIdx.offset[0]), MeshIndex(nIdx.offset[1]), MeshIndex(nIdx.offset[2]) };
+	const MeshIndex idxUpperBound = MeshIndex(1) << nIdx.depth;
+	idxApi.width = root.width / idxUpperBound;
+	idxApi.minCorner = getMappedCornerPosition<Real>(root,
+		Real(nIdx.offset[0]) / idxUpperBound,
+		Real(nIdx.offset[1]) / idxUpperBound,
+		Real(nIdx.offset[2]) / idxUpperBound);
     return idxApi;
 }
 
@@ -225,7 +234,7 @@ void IsoOctree<NodeData, Real, VertexData>::setChildren(
 
     if (nIdx.depth == root.maxDepth) return;
 
-    if (!traverser.shouldExpand(convertIdx<Real>(nIdx), apiCornerVals)) {
+    if (!traverser.shouldExpand(convertIdx<Real>(nIdx, root), apiCornerVals)) {
         return;
     }
 
