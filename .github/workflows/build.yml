@@ -6,7 +6,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Cleanup working dir
-      run: rm -rf target example/target
-    - name: Build
+    - name: Build C++
       run: ./build_library_and_example.sh
+  build_python:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: Install build dependencies
+      run: |
+        sudo apt-get install python3 python3-pip
+        pip install pybind11
+    - name: Build Python
+      run: ./build_and_test_python_library.sh
