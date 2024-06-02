@@ -30,8 +30,8 @@ with open(path.join(root_dir, 'VERSION.txt')) as f:
 
 # Get the long description from the README file
 long_description = ''
-#with open(path.join(here, 'long_description.rst'), encoding='utf-8') as f:
-#    long_description = f.read()
+with open(path.join(root_dir, 'python', 'README.rst'), encoding='utf-8') as f:
+    long_description = f.read()
 
 class CMakeExtension(Extension):
     def __init__(self, name, sourcedir=""):
@@ -55,10 +55,11 @@ setup(
     url='https://github.com/SpectacularAI/IsoOctree',
     author_email="apps@spectacularai.com",
     long_description=long_description,
-    license='BSD-3-Clause', # TODO
+    license='Apache-2.0',
     keywords='mesh',
     python_requires='>=3',
     install_requires=['numpy'],
+    license_files = ('LICENSE', 'NOTICE'),
     packages=find_packages(), # Find Python packages, including subpackages!
     ext_modules=[CMakeExtension(name)],
     cmdclass={"build_ext": JustUseMyExistingBuild},
