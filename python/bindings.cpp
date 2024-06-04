@@ -34,6 +34,7 @@ namespace py = pybind11;
 namespace {
 constexpr int DEFAULT_MAX_DEPTH = 7;
 constexpr int DEFAULT_WIDTH = 1.0;
+constexpr int DEFAULT_SUBDIVISION_THRESHOLD = 50;
 
 using Real = double;
 using Octree = isoOctree::Octree<Real>;
@@ -146,6 +147,41 @@ PYBIND11_MODULE(IsoOctree, m) {
         "\t center: Center (cx, cy, cz) of the root voxel\n"
         "\t width: Width of the root voxel w\n"
         "\t maxDepth: Maximum octree depth d. The smallest possible voxel dimension is w/2^d\n"
+        "\n"
+        "Returns: a MeshInfo object");
+
+
+    m.def("buildMeshWithPointCloudHint",
+        [](
+            GetValueCallback isoFunction,
+            py::array pointCloud,
+            int maxDepth,
+            int subdivisionThreshold)
+        {
+            Octree::PointCloudHint hint;
+            hint.nPoints = pointCloud.shape(0);
+            hint.points = reinterpret_cast<const Point3D*>(pointCloud.data());
+            hint.maxDepth = maxDepth;
+            hint.subdivisionThreshold = subdivisionThreshold;
+
+            std::unique_ptr<isoOctree::MeshInfo<Real>> output = std::make_unique<isoOctree::MeshInfo<Real>>();
+            isoOctree::buildMeshWithPointCloudHint(isoFunction, hint, *output);
+            return std::move(output);
+        },
+        py::arg("isoFunction"),
+        py::arg("pointCloud"),
+        py::kw_only(),
+        py::arg("maxDepth") = DEFAULT_MAX_DEPTH,
+        py::arg("subdivisionThreshold") = DEFAULT_SUBDIVISION_THRESHOLD,
+        "Mesh an implicit function using the Iso-Octree algorithm \n"
+        "using a point cloud hint. Applied to the minimal cubical region that contains\n"
+        "the given point cloud.\n"
+        "\n"
+        "Arguments:\n"
+        "\t isoFunction: Function f that defines the surface (f < 0 is inside)\n"
+        "\t pointCloud: Point cloud to determine the extend and use to determine subdivision\n"
+        "\t maxDepth: Maximum octree depth d. The smallest possible voxel dimension is w/2^d\n"
+        "\t subdivisionThreshold: Subdivide a voxel if there are at least this many points in its neighborhood\n"
         "\n"
         "Returns: a MeshInfo object");
 }

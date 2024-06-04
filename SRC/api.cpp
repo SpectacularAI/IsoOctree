@@ -25,6 +25,7 @@
 #include "Geometry.h"
 #include "MAT.h"
 #include "logging.hpp"
+#include "ZOrderOctree.hpp"
 
 namespace {
 template<class VertexData, class Real>
@@ -172,8 +173,6 @@ void buildMesh(typename isoOctree::Octree<Real>::Traverser &traverser, isoOctree
     isoTree.getIsoSurface(0, vertices, polygons, fullMarchingCubes);
     log_debug("Vertices %zu, Polygons: %zu", vertices.size(), polygons.size());
 
-	std::vector<std::vector<int> > triangles;
-
 	if(manifoldVersion) {
 		PolygonToManifoldTriangleMesh<VertexImpl<Real>, Real>(vertices, polygons, output);
 	} else {
@@ -190,9 +189,123 @@ void buildMesh(typename isoOctree::Octree<Real>::Traverser &traverser, isoOctree
     log_debug("Triangles: %zu", output.triangles.size());
 }
 
+template <class Real>
+void buildMeshWithPointCloudHint(
+    const std::function<float(const Point3D<Real> &)> &isoFunction,
+    const typename Octree<Real>::PointCloudHint &hint,
+    MeshInfo<Real> &output)
+{
+	log_debug("building mesh from point cloud hint with %zu point(s)", hint.nPoints);
+	output.triangles.clear();
+	output.vertices.clear();
+
+	if (hint.nPoints == 0) {
+		log_warn("empty point cloud hint: returning empty mesh");
+		return;
+	}
+
+	typename Octree<Real>::RootInfo root;
+	root.maxDepth = hint.maxDepth;
+
+	{
+		Point3D<Real> minCorner = hint.points[0];
+		Point3D<Real> maxCorner = hint.points[0];
+
+		for (std::size_t i = 0; i < hint.nPoints; i++) {
+			for (int j = 0; j < 3; j++) {
+				minCorner[j] = std::min(minCorner[j], hint.points[i][j]);
+				maxCorner[j] = std::max(maxCorner[j], hint.points[i][j]);
+			}
+		}
+
+		root.width = std::max(
+			maxCorner[0] - minCorner[0],
+			std::max(
+				maxCorner[1] - minCorner[1],
+				maxCorner[2] - minCorner[2]));
+
+		if (root.width <= 0) {
+			log_warn("point cloud hint has zero width: returning empty mesh");
+			return;
+		}
+
+		root.center = {
+			(minCorner[0] + maxCorner[0]) / 2,
+			(minCorner[1] + maxCorner[1]) / 2,
+			(minCorner[2] + maxCorner[2]) / 2
+		};
+	}
+
+	using SearchTree = ZOrderOctree<Point3D<Real>, Real>;
+
+	typename SearchTree::Parameters searchTreeParameters;
+	// OK to cap. Just gets slower to search
+	searchTreeParameters.rootLevel = std::min(hint.maxDepth + 1, (int)SearchTree::MAX_ROOT_LEVEL);
+	searchTreeParameters.leafSize = root.width / (1 << searchTreeParameters.rootLevel);
+	searchTreeParameters.origin = root.center;
+
+	SearchTree searchTree(searchTreeParameters);
+	searchTree.addData(hint.points, hint.nPoints);
+
+	class TraverserImpl : public Octree<Real>::Traverser {
+	private:
+		const std::function<float(const Point3D<Real> &)> &f;
+		const typename Octree<Real>::RootInfo &rootInfo;
+		const int subdivisionThreshold;
+		const SearchTree &searchTree;
+
+	public:
+		const typename Octree<Real>::RootInfo &root() final { return rootInfo; }
+
+		bool shouldExpand(
+			const typename Octree<Real>::Voxel &voxel,
+			const typename Octree<Real>::CornerValues &corners) final
+		{
+			(void)corners;
+			Point3D<Real> voxelCenter = {
+				Real(0.5) * voxel.width + voxel.minCorner[0],
+				Real(0.5) * voxel.width + voxel.minCorner[1],
+				Real(0.5) * voxel.width + voxel.minCorner[2]
+			};
+
+			// note: searches beyond voxel bounds on purpose
+			Real searchRadius = voxel.width;
+			std::size_t nMatches = 0;
+			for (const auto &match : searchTree.searchWithRadius(voxelCenter, searchRadius)) {
+				nMatches++;
+			}
+
+			return nMatches >= subdivisionThreshold;
+		}
+
+		float isoValue(const Point3D<Real> &point) final {
+			return f(point);
+		}
+
+		TraverserImpl(
+			const std::function<float(const Point3D<Real> &)> &f,
+			const typename Octree<Real>::RootInfo &r,
+			int subdivisionThreshold,
+			const SearchTree &searchTree
+		) :
+			f(f),
+			rootInfo(r),
+			subdivisionThreshold(subdivisionThreshold),
+			searchTree(searchTree)
+		{}
+	};
+
+	TraverserImpl traverser(isoFunction, root, hint.subdivisionThreshold, searchTree);
+	buildMesh(traverser, output);
+}
+
 #define SPECIALIZE(real) \
 template void buildMesh<real>( \
     Octree<real>::Traverser &, \
+    MeshInfo<real> &); \
+template void buildMeshWithPointCloudHint<real>( \
+    const std::function<float(const Point3D<real> &)> &, \
+    const typename Octree<real>::PointCloudHint &, \
     MeshInfo<real> &)
 
 SPECIALIZE(float);

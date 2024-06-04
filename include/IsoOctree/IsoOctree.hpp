@@ -58,6 +58,13 @@ template <class Real> struct Octree {
         int maxDepth; // must be known beforehand for practical reasons
     };
 
+    struct PointCloudHint {
+        const Point3D<Real> *points;
+        MeshIndex nPoints;
+        int maxDepth;
+        MeshIndex subdivisionThreshold;
+    };
+
     using CornerValues = std::array<float, 8>;
 
     using NodeIndex = Voxel; // backwards compatibility
@@ -73,6 +80,11 @@ template <class Real> struct Octree {
 template <class Real>
 ISO_OCTREE_API void buildMesh(typename Octree<Real>::Traverser &traverser, MeshInfo<Real> &output);
 
+template <class Real>
+ISO_OCTREE_API void buildMeshWithPointCloudHint(
+    const std::function<float(const Point3D<Real> &)> &isoFunction,
+    const typename Octree<Real>::PointCloudHint &hint,
+    MeshInfo<Real> &output);
 }
 
 #endif

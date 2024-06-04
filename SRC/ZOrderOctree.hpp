@@ -31,13 +31,6 @@
 #include <limits>
 #include <vector>
 
-#ifdef Z_ORDER_OCTREE_DEBUG
-#include <cstdio>
-#define log_debug(...) do { std::printf(__VA_ARGS__); std::printf("\n"); } while (0)
-#else
-#define log_debug(...)
-#endif
-
 template <class Element, class Float = float, class ZIndex = std::uint64_t>
 class ZOrderOctree {
 public:
