@@ -45,9 +45,33 @@ using RootInfo = Octree::RootInfo;
 using MeshInfo = isoOctree::MeshInfo<Real>;
 
 using ShouldExpandCallback = std::function<bool(const Voxel &, const CornerValues &corners)>;
-using GetValueCallback = std::function<float(const Point3D &)>;
+using GetValueCallback = std::function<py::array(py::array)>;
 
-class CallbackTraverser : public Octree::Traverser {
+void convertCallback(GetValueCallback &pythonCallback, const std::vector<Point3D> &points, std::vector<float> &values) {
+    const long n = static_cast<long>(points.size());
+
+    py::array ret = pythonCallback(py::array_t<Real>(
+        std::vector<ptrdiff_t> { n, 3 },
+        reinterpret_cast<const Real*>(points.data())
+    ));
+
+    if (ret.ndim() != 1) throw std::runtime_error("must return an 1-d array");
+    if (ret.shape(0) != n) throw std::runtime_error("must the same number of values as there were input points");
+
+    ret = ret.attr("astype")(py::dtype("float32"));
+
+    // Check if the array is already in row-major (C-contiguous) layout
+    if (!ret.attr("flags").attr("c_contiguous").cast<bool>()) {
+        // If not, make it row-major by copying the array
+        ret = ret.attr("copy")("C");
+    }
+
+    values.resize(n);
+    const float *data = reinterpret_cast<const float*>(ret.data());
+    std::copy(data, data + n, values.data());
+}
+
+class CallbackTraverser : public Octree::VectorizedTraverser {
 private:
     RootInfo rootInfo;
     ShouldExpandCallback shouldExpandCallback;
@@ -69,8 +93,8 @@ public:
         return shouldExpandCallback(voxel, corners);
     }
 
-    float isoValue(const Point3D &point) final {
-        return getValueCallback(point);
+    void isoValues(const std::vector<Point3D> &points, std::vector<float> &values) final {
+        convertCallback(getValueCallback, points, values);
     }
 };
 }
@@ -165,7 +189,15 @@ PYBIND11_MODULE(IsoOctree, m) {
             hint.subdivisionThreshold = subdivisionThreshold;
 
             std::unique_ptr<isoOctree::MeshInfo<Real>> output = std::make_unique<isoOctree::MeshInfo<Real>>();
-            isoOctree::buildMeshWithPointCloudHint(isoFunction, hint, *output);
+
+            std::function<void(const std::vector<Point3D> &, std::vector<float> &)> cppCallback = [&isoFunction](
+                const std::vector<Point3D> &points,
+                std::vector<float> &values)
+            {
+                convertCallback(isoFunction, points, values);
+            };
+
+            isoOctree::buildMeshWithPointCloudHint(cppCallback, hint, *output);
             return std::move(output);
         },
         py::arg("isoFunction"),

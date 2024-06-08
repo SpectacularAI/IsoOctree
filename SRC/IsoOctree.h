@@ -158,6 +158,7 @@ public:
 	int setConforming(const std::vector<Vertex>& vertices,const std::vector<std::vector<int> >& polygons,const int& maxDepth,const int& setCenter,const Real& flatness,Point3D<Real>& translate,Real& scale,const int& noTransform);
 
 	bool set(typename isoOctree::Octree<Real>::Traverser &traverser);
+	bool set(typename isoOctree::Octree<Real>::VectorizedTraverser &traverser);
 
 	// A clean-up method to remove un-needed entries in the cornerValues hash-table
 	void resetValues(void);

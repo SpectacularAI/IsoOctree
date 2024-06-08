@@ -144,12 +144,9 @@ void PolygonToManifoldTriangleMesh( std::vector<Vertex>& vertices , const std::v
 		}
 	}
 }
-}
 
-namespace isoOctree {
-
-template <class Real>
-void buildMesh(typename isoOctree::Octree<Real>::Traverser &traverser, isoOctree::MeshInfo<Real> &output)
+template <class Traverser, class Real>
+void buildMeshAny(Traverser &traverser, isoOctree::MeshInfo<Real> &output)
 {
     static bool isoOctreeCaseInit = false;
     if (!isoOctreeCaseInit) {
@@ -189,11 +186,11 @@ void buildMesh(typename isoOctree::Octree<Real>::Traverser &traverser, isoOctree
     log_debug("Triangles: %zu", output.triangles.size());
 }
 
-template <class Real>
-void buildMeshWithPointCloudHint(
-    const std::function<float(const Point3D<Real> &)> &isoFunction,
-    const typename Octree<Real>::PointCloudHint &hint,
-    MeshInfo<Real> &output)
+template <class Real, class BuildMeshFunc>
+void buildMeshWithPointCloudHintAny(
+	const BuildMeshFunc &buildMeshFunc,
+    const typename isoOctree::Octree<Real>::PointCloudHint &hint,
+	isoOctree::MeshInfo<Real> &output)
 {
 	log_debug("building mesh from point cloud hint with %zu point(s)", hint.nPoints);
 	output.triangles.clear();
@@ -204,12 +201,15 @@ void buildMeshWithPointCloudHint(
 		return;
 	}
 
-	typename Octree<Real>::RootInfo root;
+	using Octree = isoOctree::Octree<Real>;
+	using Point3D = isoOctree::Point3D<Real>;
+
+	typename Octree::RootInfo root;
 	root.maxDepth = hint.maxDepth;
 
 	{
-		Point3D<Real> minCorner = hint.points[0];
-		Point3D<Real> maxCorner = hint.points[0];
+		Point3D minCorner = hint.points[0];
+		Point3D maxCorner = hint.points[0];
 
 		for (std::size_t i = 0; i < hint.nPoints; i++) {
 			for (int j = 0; j < 3; j++) {
@@ -236,7 +236,7 @@ void buildMeshWithPointCloudHint(
 		};
 	}
 
-	using SearchTree = ZOrderOctree<Point3D<Real>, Real>;
+	using SearchTree = ZOrderOctree<Point3D, Real>;
 
 	typename SearchTree::Parameters searchTreeParameters;
 	// OK to cap. Just gets slower to search
@@ -247,22 +247,14 @@ void buildMeshWithPointCloudHint(
 	SearchTree searchTree(searchTreeParameters);
 	searchTree.addData(hint.points, hint.nPoints);
 
-	class TraverserImpl : public Octree<Real>::Traverser {
-	private:
-		const std::function<float(const Point3D<Real> &)> &f;
-		const typename Octree<Real>::RootInfo &rootInfo;
-		const int subdivisionThreshold;
-		const SearchTree &searchTree;
-
-	public:
-		const typename Octree<Real>::RootInfo &root() final { return rootInfo; }
-
-		bool shouldExpand(
-			const typename Octree<Real>::Voxel &voxel,
-			const typename Octree<Real>::CornerValues &corners) final
+	buildMeshFunc(
+		root,
+		[&searchTree, &hint](
+			const typename Octree::Voxel &voxel,
+			const typename Octree::CornerValues &corners) -> bool
 		{
 			(void)corners;
-			Point3D<Real> voxelCenter = {
+			Point3D voxelCenter = {
 				Real(0.5) * voxel.width + voxel.minCorner[0],
 				Real(0.5) * voxel.width + voxel.minCorner[1],
 				Real(0.5) * voxel.width + voxel.minCorner[2]
@@ -275,36 +267,142 @@ void buildMeshWithPointCloudHint(
 				nMatches++;
 			}
 
-			return nMatches >= subdivisionThreshold;
+			return nMatches >= hint.subdivisionThreshold;
+		});
+}
+}
+
+namespace isoOctree {
+template <class Real>
+void buildMesh(typename isoOctree::Octree<Real>::Traverser &traverser, isoOctree::MeshInfo<Real> &output) {
+	buildMeshAny(traverser, output);
+}
+
+template <class Real>
+void buildMesh(typename isoOctree::Octree<Real>::VectorizedTraverser &traverser, isoOctree::MeshInfo<Real> &output) {
+	buildMeshAny(traverser, output);
+}
+
+template <class Real>
+void buildMeshWithPointCloudHint(
+    const std::function<float(const Point3D<Real> &)> &isoFunction,
+    const typename Octree<Real>::PointCloudHint &hint,
+    MeshInfo<Real> &output)
+{
+	using Octree = Octree<Real>;
+	using RootInfo = typename Octree::RootInfo;
+	using IsoFunction = std::function<float(const Point3D<Real> &)>;
+	using ShouldExpandCallback = std::function<bool(
+		const typename Octree::Voxel &,
+		const typename Octree::CornerValues &)>;
+
+	class TraverserImpl : public Octree::Traverser {
+	private:
+		const IsoFunction &isoFunction;
+		const ShouldExpandCallback &shouldExpandCallback;
+		const RootInfo &rootInfo;
+
+	public:
+		const RootInfo &root() final { return rootInfo; }
+
+		bool shouldExpand(
+			const typename Octree::Voxel &voxel,
+			const typename Octree::CornerValues &corners) final
+		{
+			return shouldExpandCallback(voxel, corners);
 		}
 
 		float isoValue(const Point3D<Real> &point) final {
-			return f(point);
+			return isoFunction(point);
 		}
 
 		TraverserImpl(
-			const std::function<float(const Point3D<Real> &)> &f,
-			const typename Octree<Real>::RootInfo &r,
-			int subdivisionThreshold,
-			const SearchTree &searchTree
+			const IsoFunction &isoFunction,
+			const ShouldExpandCallback &cb,
+			const RootInfo &r
 		) :
-			f(f),
-			rootInfo(r),
-			subdivisionThreshold(subdivisionThreshold),
-			searchTree(searchTree)
+			isoFunction(isoFunction),
+			shouldExpandCallback(cb),
+			rootInfo(r)
 		{}
 	};
 
-	TraverserImpl traverser(isoFunction, root, hint.subdivisionThreshold, searchTree);
-	buildMesh(traverser, output);
+	buildMeshWithPointCloudHintAny<Real>([&isoFunction, &output](
+		const RootInfo &rootInfo,
+		const ShouldExpandCallback &shouldExpandCallback
+	) {
+		TraverserImpl traverser(isoFunction, shouldExpandCallback, rootInfo);
+		buildMesh(traverser, output);
+
+	}, hint, output);
+}
+
+template <class Real>
+void buildMeshWithPointCloudHint(
+    const std::function<void(const std::vector<Point3D<Real>> &, std::vector<float> &)> &isoFunction,
+    const typename Octree<Real>::PointCloudHint &hint,
+    MeshInfo<Real> &output)
+{
+	using Octree = Octree<Real>;
+	using RootInfo = typename Octree::RootInfo;
+	using IsoFunction = std::function<void(const std::vector<Point3D<Real>> &, std::vector<float> &)>;
+	using ShouldExpandCallback = std::function<bool(
+		const typename Octree::Voxel &,
+		const typename Octree::CornerValues &)>;
+
+	class TraverserImpl : public Octree::VectorizedTraverser {
+	private:
+		const IsoFunction &isoFunction;
+		const ShouldExpandCallback &shouldExpandCallback;
+		const RootInfo &rootInfo;
+
+	public:
+		const RootInfo &root() final { return rootInfo; }
+
+		bool shouldExpand(
+			const typename Octree::Voxel &voxel,
+			const typename Octree::CornerValues &corners) final
+		{
+			return shouldExpandCallback(voxel, corners);
+		}
+
+		void isoValues(const std::vector<Point3D<Real>> &points, std::vector<float> &values) final {
+			isoFunction(points, values);
+		}
+
+		TraverserImpl(
+			const IsoFunction &f,
+			const ShouldExpandCallback &cb,
+			const RootInfo &r
+		) :
+			isoFunction(f),
+			shouldExpandCallback(cb),
+			rootInfo(r)
+		{}
+	};
+
+	buildMeshWithPointCloudHintAny<Real>([&isoFunction, &output](
+		const RootInfo &rootInfo,
+		const ShouldExpandCallback &shouldExpandCallback
+	) {
+		TraverserImpl traverser(isoFunction, shouldExpandCallback, rootInfo);
+		buildMesh(traverser, output);
+	}, hint, output);
 }
 
 #define SPECIALIZE(real) \
 template void buildMesh<real>( \
     Octree<real>::Traverser &, \
     MeshInfo<real> &); \
+template void buildMesh<real>( \
+    Octree<real>::VectorizedTraverser &, \
+    MeshInfo<real> &); \
 template void buildMeshWithPointCloudHint<real>( \
     const std::function<float(const Point3D<real> &)> &, \
+    const typename Octree<real>::PointCloudHint &, \
+    MeshInfo<real> &); \
+template void buildMeshWithPointCloudHint<real>( \
+    const std::function<void(const std::vector<Point3D<real>> &, std::vector<float> &)> &, \
     const typename Octree<real>::PointCloudHint &, \
     MeshInfo<real> &)
 
@@ -323,6 +421,96 @@ bool IsoOctree<NodeData, Real, VertexData>::set(typename isoOctree::Octree<Real>
 	cornerValues.clear();
 
 	setChildren(&tree, nIdx, traverser);
+
+	return true;
+}
+
+template<class NodeData, class Real, class VertexData>
+bool IsoOctree<NodeData, Real, VertexData>::set(typename isoOctree::Octree<Real>::VectorizedTraverser &traverser) {
+	maxDepth = traverser.root().maxDepth;
+    assert(maxDepth > 0);
+	cornerValues.clear();
+
+	std::vector<long long> keyList;
+	std::vector<isoOctree::Point3D<Real>> evalList;
+	std::vector<float> valueList;
+
+    const auto &root = traverser.root();
+
+	struct Node {
+		typename OctNode<NodeData,Real>::NodeIndex index;
+		OctNode<NodeData,Real>* data;
+	};
+
+	std::vector<Node> nodes, nextNodes;
+	nodes.push_back({
+		{}, // initialized to zero
+		&tree
+	});
+
+	for (int depth = 0; depth <= maxDepth; ++depth) {
+		keyList.clear();
+		evalList.clear();
+
+		for (auto &node : nodes) {
+			const auto &nIdx = node.index;
+
+			Point3D<Real> ctr;
+			Real w;
+			OctNode<NodeData,Real>::CenterAndWidth(nIdx,ctr,w);
+
+			for (int i=0; i<Cube::CORNERS; i++) {
+				const long long key = OctNode<NodeData,Real>::CornerIndex(nIdx, i, root.maxDepth);
+				if(cornerValues.find(key) == cornerValues.end()) {
+					int x,y,z;
+					Cube::FactorCornerIndex(i, x, y, z);
+					isoOctree::Point3D<Real> coords = getMappedCornerPosition<Real>(
+						root,
+						ctr.coords[0] + Real(x - 0.5) * w,
+						ctr.coords[1] + Real(y - 0.5) * w,
+						ctr.coords[2] + Real(z - 0.5) * w
+					);
+					keyList.push_back(key);
+					evalList.push_back(coords);
+					cornerValues[key] = VertexData(); // will be evaluated on the next pass
+				}
+			}
+		}
+
+		log_debug("level %d: evaluating %zu values", depth, keyList.size());
+		valueList.resize(evalList.size());
+		traverser.isoValues(evalList, valueList);
+		for (std::size_t i = 0; i < keyList.size(); ++i) {
+			cornerValues[keyList[i]] = VertexData(valueList[i]);
+		}
+
+		if (depth == maxDepth) break;
+
+		nextNodes.clear();
+		for (auto &node : nodes) {
+			const auto &nIdx = node.index;
+
+			typename isoOctree::Octree<Real>::CornerValues apiCornerVals;
+			for (int i=0; i<Cube::CORNERS; i++) {
+				const long long key = OctNode<NodeData,Real>::CornerIndex(nIdx, i, root.maxDepth);
+				apiCornerVals[i] = cornerValues.at(key).v;
+			}
+
+			if (traverser.shouldExpand(convertIdx<Real>(nIdx, root), apiCornerVals)) {
+				if (!node.data->children) node.data->initChildren();
+				for (int i=0; i<Cube::CORNERS; i++) {
+					const long long key = OctNode<NodeData,Real>::CornerIndex(nIdx, i, root.maxDepth);
+
+					nextNodes.push_back({
+						nIdx.child(i),
+						&node.data->children[i]
+					});
+				}
+			}
+		}
+
+		std::swap(nodes, nextNodes);
+	}
 
 	return true;
 }
@@ -369,7 +557,6 @@ void IsoOctree<NodeData, Real, VertexData>::setChildren(
 
 	if (!node->children) node->initChildren();
     for (int i=0; i<Cube::CORNERS; i++) {
-	    key = OctNode<NodeData,Real>::CornerIndex(nIdx, i, root.maxDepth);
 		setChildren(&node->children[i], nIdx.child(i), traverser);
     }
 }

@@ -1,7 +1,7 @@
 import IsoOctree
 
 def getValue(p):
-    x, y, z = p
+    x, y, z = [p[:, i] for i in range(3)]
     # Tanglecube
     return x*x*x*x - 5*x*x + y*y*y*y - 5*y*y + z*z*z*z - 5*z*z + 11.8
 

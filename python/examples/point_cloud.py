@@ -11,10 +11,8 @@ def buildMesh(points, normals, maxDepth, maxDist, kNearest, subdivisionThreshold
     tree = KDTree(points)
     md2 = maxDist**2
 
-    def isoValue(point):
-        p0 = np.array(list(point))
+    def isoValue(p0):
         _, ii = tree.query(p0, k=kNearest, distance_upper_bound=maxDist)
-
         ii = [i for i in ii if i < len(points)]
 
         if len(ii) == 0:
@@ -25,8 +23,11 @@ def buildMesh(points, normals, maxDepth, maxDist, kNearest, subdivisionThreshold
         weights = 1.0 - np.array([min(d2, md2) / md2 for d2 in sqDists])
         return np.sum([weights[i] * np.dot(normals[ii[i], :], p0 - points[ii[i], :]) for i in range(len(ii))])
 
+    def isoValues(points):
+        return [isoValue(points[i, :]) for i in range(points.shape[0])]
+
     return IsoOctree.buildMeshWithPointCloudHint(
-        isoValue,
+        isoValues,
         points,
         maxDepth=maxDepth,
         subdivisionThreshold=subdivisionThreshold)

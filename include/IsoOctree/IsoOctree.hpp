@@ -75,14 +75,31 @@ template <class Real> struct Octree {
         virtual float isoValue(const Point3D<Real> &point) = 0;
         // no virtual dtor, do not delete this class
     };
+
+    // evaluates the function one level at a time
+    struct VectorizedTraverser {
+        virtual const RootInfo &root() = 0;
+        virtual bool shouldExpand(const NodeIndex &node, const CornerValues &corners) = 0;
+        virtual void isoValues(const std::vector<Point3D<Real>> &points, std::vector<float> &result) = 0;
+        // no virtual dtor, do not delete this class
+    };
 };
 
 template <class Real>
 ISO_OCTREE_API void buildMesh(typename Octree<Real>::Traverser &traverser, MeshInfo<Real> &output);
 
 template <class Real>
+ISO_OCTREE_API void buildMesh(typename Octree<Real>::VectorizedTraverser &traverser, MeshInfo<Real> &output);
+
+template <class Real>
 ISO_OCTREE_API void buildMeshWithPointCloudHint(
     const std::function<float(const Point3D<Real> &)> &isoFunction,
+    const typename Octree<Real>::PointCloudHint &hint,
+    MeshInfo<Real> &output);
+
+template <class Real>
+ISO_OCTREE_API void buildMeshWithPointCloudHint(
+    const std::function<void(const std::vector<Point3D<Real>> &, std::vector<float> &)> &isoFunction,
     const typename Octree<Real>::PointCloudHint &hint,
     MeshInfo<Real> &output);
 }

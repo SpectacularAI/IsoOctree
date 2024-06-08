@@ -2,31 +2,31 @@ import IsoOctree
 import numpy as np
 
 def getValue(p):
-    x, y, z = p
+    x, y, z = [p[:, i] for i in range(3)]
 
     # Cayley cubic
     return x**2 + y**2 - x**2*z + y**2*z + z**2 - 1
 
 def getGradient(p):
-    x, y, z = p
+    x, y, z = [p[:, i] for i in range(3)]
 
     dx = 2*x - 2*x*z
     dy = 2*y + 2*y*z
     dz = -x**2 + y**2 + 2*z
 
-    return np.array([dx, dy, dz])
+    return np.hstack([c[:, np.newaxis] for c in [dx, dy, dz]])
 
 def getMinDot(node):
     h = node.width / 2
     p = (node.minCorner[0] + h, node.minCorner[1] + h, node.minCorner[2] + h)
     normals = []
+    grad_points = []
     for dx in [-1, 1]:
         for dy in [-1, 1]:
             for dz in [-1, 1]:
-                p2 = (p[0] + dx * h, p[1] + dy * h, p[2] + dz * h)
-                grad = getGradient(p2)
-                normal = grad / max(np.linalg.norm(grad), 1e-6)
-                normals.append(normal)
+                grad_points.append([p[0] + dx * h, p[1] + dy * h, p[2] + dz * h])
+    grad = getGradient(np.array(grad_points))
+    normals = grad / np.maximum(np.linalg.norm(grad, axis=1), 1e-6)[:, np.newaxis]
 
     mean_normal = np.mean(normals, axis=0)
     mean_normal = mean_normal / max(np.linalg.norm(mean_normal), 1e-6)
@@ -52,9 +52,8 @@ def shouldExpand(node, cornerValues):
 
 def refineVertices(vertices, iterations=5):
     for _ in range(iterations):
-        x, y, z = [vertices[:, i] for i in range(3)]
-        grad = getGradient((x, y, z)).T
-        value = getValue((x, y, z))
+        grad = getGradient(vertices)
+        value = getValue(vertices)
         vertices = vertices - grad * ((value / np.sum(grad**2, axis=1)))[:, np.newaxis]
 
     return vertices
