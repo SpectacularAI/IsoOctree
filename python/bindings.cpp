@@ -56,7 +56,7 @@ void convertCallback(GetValueCallback &pythonCallback, const std::vector<Point3D
     ));
 
     if (ret.ndim() != 1) throw std::runtime_error("must return an 1-d array");
-    if (ret.shape(0) != n) throw std::runtime_error("must the same number of values as there were input points");
+    if (ret.shape(0) != n) throw std::runtime_error("must have the same number of values as there were input points");
 
     ret = ret.attr("astype")(py::dtype("float32"));
 
